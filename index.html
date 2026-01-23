@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Busca Endereço - Itanhaém & Brasil</title>
+    <link rel="shortcut icon" href="icon.jpg" type="image/x-icon">
+    <style>
+        :root {
+            --primary: #2563eb; /* Azul Royal */
+            --primary-hover: #1d4ed8;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --success: #10b981;
+            --error: #ef4444;
+            --radius: 12px;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+
+        body {
+            background-color: var(--bg-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            width: 100%;
+            max-width: 600px; /* Mais largo para caber a lista */
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            max-height: 90vh; /* Limite de altura */
+        }
+
+        .header { text-align: center; }
+        h1 { font-size: 1.5rem; color: var(--text-main); margin-bottom: 0.5rem; }
+        p.subtitle { color: var(--text-muted); font-size: 0.9rem; }
+
+        .search-grid {
+            display: grid;
+            grid-template-columns: 80px 1fr;
+            gap: 10px;
+        }
+
+        .full-width { grid-column: span 2; }
+
+        label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+            display: block;
+            text-transform: uppercase;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px 14px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input:focus, select:focus { border-color: var(--primary); }
+
+        button.btn-search {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            grid-column: span 2;
+        }
+        button.btn-search:hover { background-color: var(--primary-hover); }
+
+        /* Área de Resultados Scrollável */
+        #results-container {
+            overflow-y: auto;
+            padding-right: 5px;
+            border-top: 1px solid var(--border);
+            padding-top: 1rem;
+            display: none; /* Oculto inicialmente */
+        }
+
+        .result-card {
+            background: #f1f5f9;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .info h3 { font-size: 1rem; color: var(--text-main); }
+        .info p { font-size: 0.85rem; color: var(--text-muted); margin-top: 2px; }
+
+        .cep-tag {
+            background: #e0e7ff;
+            color: var(--primary);
+            font-family: monospace;
+            font-size: 1rem;
+            font-weight: 700;
+            padding: 6px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .cep-tag:hover {
+            border-color: var(--primary);
+            background: #dbeafe;
+        }
+        
+        .cep-tag::after {
+            content: '📋';
+            font-size: 0.8rem;
+            opacity: 0.5;
+        }
+
+        .cep-tag:active { transform: scale(0.95); }
+
+        /* Toast de Cópia */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1f2937;
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+        .toast.show { opacity: 1; }
+
+        /* Scrollbar custom */
+        #results-container::-webkit-scrollbar { width: 6px; }
+        #results-container::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header">
+            <h1>Localizador de CEP</h1>
+            <p class="subtitle">Encontre o CEP pelo nome da rua</p>
+        </div>
+
+        <form id="addressForm" class="search-grid">
+            
+            <div>
+                <label>Estado</label>
+                <select id="uf" required>
+                    <option value="SP" selected>SP</option>
+                    <option value="AC">AC</option><option value="AL">AL</option><option value="AP">AP</option>
+                    <option value="AM">AM</option><option value="BA">BA</option><option value="CE">CE</option>
+                    <option value="DF">DF</option><option value="ES">ES</option><option value="GO">GO</option>
+                    <option value="MA">MA</option><option value="MT">MT</option><option value="MS">MS</option>
+                    <option value="MG">MG</option><option value="PA">PA</option><option value="PB">PB</option>
+                    <option value="PR">PR</option><option value="PE">PE</option><option value="PI">PI</option>
+                    <option value="RJ">RJ</option><option value="RN">RN</option><option value="RS">RS</option>
+                    <option value="RO">RO</option><option value="RR">RR</option><option value="SC">SC</option>
+                    <option value="SE">SE</option><option value="TO">TO</option>
+                </select>
+            </div>
+
+            <div>
+                <label>Cidade</label>
+                <input type="text" id="city" placeholder="Ex: Itanhaém" value="Itanhaém" required>
+            </div>
+
+            <div class="full-width">
+                <label>Nome da Rua (Parte do nome)</label>
+                <input type="text" id="street" placeholder="Ex: Avenida Rui Barbosa" minlength="3" required>
+            </div>
+
+            <button type="submit" class="btn-search" id="btnSearch">Pesquisar Endereços</button>
+        </form>
+
+        <div id="statusMessage" style="text-align: center; color: var(--text-muted); font-size: 0.9rem;"></div>
+
+        <div id="results-container">
+            </div>
+    </div>
+
+    <div id="toast" class="toast">CEP Copiado!</div>
+
+    <script>
+        const form = document.getElementById('addressForm');
+        const listContainer = document.getElementById('results-container');
+        const statusMsg = document.getElementById('statusMessage');
+        const btnSearch = document.getElementById('btnSearch');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const uf = document.getElementById('uf').value;
+            const city = document.getElementById('city').value.trim();
+            const street = document.getElementById('street').value.trim();
+
+            if (street.length < 3) {
+                statusMsg.textContent = "Digite pelo menos 3 letras da rua.";
+                statusMsg.style.color = "var(--error)";
+                return;
+            }
+
+            // UI Loading
+            btnSearch.disabled = true;
+            btnSearch.textContent = "Buscando...";
+            listContainer.style.display = 'none';
+            statusMsg.textContent = "Consultando base de dados...";
+            statusMsg.style.color = "var(--text-muted)";
+            listContainer.innerHTML = '';
+
+            try {
+                // ViaCEP requer: UF / Cidade / Logradouro
+                // encodeURIComponent é vital para cidades/ruas com espaço ou acento
+                const url = `https://viacep.com.br/ws/${uf}/${encodeURIComponent(city)}/${encodeURIComponent(street)}/json/`;
+                
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (!Array.isArray(data) || data.length === 0) {
+                    throw new Error("Nenhum endereço encontrado.");
+                }
+
+                renderResults(data);
+                statusMsg.textContent = `${data.length} endereço(s) encontrado(s).`;
+                statusMsg.style.color = "var(--success)";
+                listContainer.style.display = 'block';
+
+            } catch (error) {
+                console.error(error);
+                statusMsg.textContent = "Nenhum resultado encontrado. Verifique a grafia.";
+                statusMsg.style.color = "var(--error)";
+            } finally {
+                btnSearch.disabled = false;
+                btnSearch.textContent = "Pesquisar Endereços";
+            }
+        });
+
+        function renderResults(items) {
+            listContainer.innerHTML = ''; // Limpa anteriores
+
+            items.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'result-card';
+                
+                // Formata o HTML do card
+                card.innerHTML = `
+                    <div class="info">
+                        <h3>${item.logradouro} ${item.complemento ? '('+item.complemento+')' : ''}</h3>
+                        <p>${item.bairro} - ${item.localidade}/${item.uf}</p>
+                    </div>
+                    <div class="cep-tag" onclick="copyToClipboard('${item.cep}')" title="Clique para copiar">
+                        ${item.cep}
+                    </div>
+                `;
+                listContainer.appendChild(card);
+            });
+        }
+
+        // Função para Copiar CEP
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                const toast = document.getElementById('toast');
+                toast.classList.add('show');
+                setTimeout(() => toast.classList.remove('show'), 2000);
+            });
+        }
+    </script>
+</body>
+</html>
