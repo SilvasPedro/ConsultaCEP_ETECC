@@ -3,298 +3,394 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Busca Endereço - Itanhaém & Brasil</title>
-    <link rel="shortcut icon" href="icon.jpg" type="image/x-icon">
+    <title>Busca CEP Integrada</title>
     <style>
         :root {
-            --primary: #2563eb; /* Azul Royal */
-            --primary-hover: #1d4ed8;
-            --bg-color: #f8fafc;
-            --card-bg: #ffffff;
-            --text-main: #0f172a;
-            --text-muted: #64748b;
-            --border: #e2e8f0;
-            --success: #10b981;
-            --error: #ef4444;
-            --radius: 12px;
-            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --primary: #4f46e5; /* Indigo */
+            --primary-hover: #4338ca;
+            --bg-body: #f3f4f6;
+            --bg-card: #ffffff;
+            --text-main: #111827;
+            --text-muted: #6b7280;
+            --border: #e5e7eb;
+            --radius: 16px;
+            --radius-sm: 8px;
+            --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
 
         body {
-            background-color: var(--bg-color);
+            background-color: var(--bg-body);
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
             padding: 20px;
+            color: var(--text-main);
         }
 
-        .container {
-            background: var(--card-bg);
-            padding: 2rem;
+        .app-container {
+            background: var(--bg-card);
+            width: 100%;
+            max-width: 500px;
             border-radius: var(--radius);
             box-shadow: var(--shadow);
-            width: 100%;
-            max-width: 600px; /* Mais largo para caber a lista */
+            overflow: hidden;
             display: flex;
             flex-direction: column;
-            gap: 1.5rem;
-            max-height: 90vh; /* Limite de altura */
+            max-height: 90vh;
         }
 
-        .header { text-align: center; }
-        h1 { font-size: 1.5rem; color: var(--text-main); margin-bottom: 0.5rem; }
-        p.subtitle { color: var(--text-muted); font-size: 0.9rem; }
+        /* --- Header & Tabs --- */
+        .header {
+            padding: 1.5rem 1.5rem 0 1.5rem;
+            text-align: center;
+        }
+        
+        .header h1 { font-size: 1.25rem; margin-bottom: 1rem; }
 
-        .search-grid {
-            display: grid;
-            grid-template-columns: 80px 1fr;
-            gap: 10px;
+        .tab-switcher {
+            display: flex;
+            background: #f1f5f9;
+            padding: 4px;
+            border-radius: 12px;
+            margin-bottom: 1rem;
         }
 
-        .full-width { grid-column: span 2; }
-
-        label {
-            font-size: 0.75rem;
-            font-weight: 700;
+        .tab-btn {
+            flex: 1;
+            border: none;
+            background: transparent;
+            padding: 10px;
+            font-weight: 600;
             color: var(--text-muted);
-            margin-bottom: 4px;
-            display: block;
-            text-transform: uppercase;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
         }
 
+        .tab-btn.active {
+            background: #fff;
+            color: var(--primary);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        /* --- Content Area --- */
+        .content-area {
+            padding: 0 1.5rem 1.5rem 1.5rem;
+            overflow-y: auto; /* Scroll interno se necessário */
+            flex: 1;
+        }
+
+        .view-section { display: none; animation: fadeIn 0.3s ease; }
+        .view-section.active { display: block; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* --- Forms --- */
+        .form-group { margin-bottom: 1rem; }
+        label { display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; }
+        
         input, select {
             width: 100%;
-            padding: 10px 14px;
+            padding: 12px;
             border: 2px solid var(--border);
-            border-radius: 8px;
+            border-radius: var(--radius-sm);
             font-size: 1rem;
             outline: none;
             transition: border-color 0.2s;
         }
-
+        
         input:focus, select:focus { border-color: var(--primary); }
 
-        button.btn-search {
-            background-color: var(--primary);
+        .btn-action {
+            width: 100%;
+            background: var(--primary);
             color: white;
             border: none;
             padding: 12px;
-            border-radius: 8px;
+            border-radius: var(--radius-sm);
             font-weight: 600;
             cursor: pointer;
-            transition: background 0.2s;
-            grid-column: span 2;
+            margin-top: 10px;
         }
-        button.btn-search:hover { background-color: var(--primary-hover); }
+        .btn-action:hover { background-color: var(--primary-hover); }
+        .btn-action:disabled { opacity: 0.7; cursor: not-allowed; }
 
-        /* Área de Resultados Scrollável */
-        #results-container {
-            overflow-y: auto;
-            padding-right: 5px;
-            border-top: 1px solid var(--border);
-            padding-top: 1rem;
-            display: none; /* Oculto inicialmente */
-        }
-
-        .result-card {
-            background: #f1f5f9;
-            border: 1px solid var(--border);
-            border-radius: 8px;
+        /* --- Resultados (Cards) --- */
+        .result-box { margin-top: 1.5rem; border-top: 1px solid var(--border); padding-top: 1rem; }
+        
+        .card-single {
+            background: #f8fafc;
             padding: 1rem;
-            margin-bottom: 10px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+        }
+
+        .card-list-item {
+            background: #f8fafc;
+            padding: 1rem;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            margin-bottom: 0.8rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
-        .info h3 { font-size: 1rem; color: var(--text-main); }
-        .info p { font-size: 0.85rem; color: var(--text-muted); margin-top: 2px; }
+        .data-label { font-size: 0.75rem; color: var(--text-muted); font-weight: bold; margin-top: 8px; }
+        .data-value { font-size: 1.1rem; color: var(--text-main); font-weight: 500; }
 
-        .cep-tag {
+        /* Tags e Utilitários */
+        .cep-badge {
             background: #e0e7ff;
             color: var(--primary);
-            font-family: monospace;
-            font-size: 1rem;
-            font-weight: 700;
-            padding: 6px 10px;
+            padding: 6px 12px;
             border-radius: 6px;
+            font-family: monospace;
+            font-weight: 700;
             cursor: pointer;
-            border: 1px solid transparent;
-            transition: all 0.2s;
+            transition: 0.2s;
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 6px;
         }
+        .cep-badge:hover { background: #dbeafe; }
+        .cep-badge::after { content: '📋'; font-size: 0.8em; opacity: 0.6; }
 
-        .cep-tag:hover {
-            border-color: var(--primary);
-            background: #dbeafe;
-        }
-        
-        .cep-tag::after {
-            content: '📋';
-            font-size: 0.8rem;
-            opacity: 0.5;
-        }
+        .status-msg { text-align: center; margin-top: 10px; font-size: 0.9rem; min-height: 20px; }
+        .error { color: #ef4444; }
+        .success { color: #10b981; }
 
-        .cep-tag:active { transform: scale(0.95); }
-
-        /* Toast de Cópia */
+        /* Toast Notification */
         .toast {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #1f2937;
-            color: #fff;
-            padding: 10px 20px;
-            border-radius: 20px;
-            font-size: 0.9rem;
-            opacity: 0;
-            transition: opacity 0.3s;
-            pointer-events: none;
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px);
+            background: #1f2937; color: white; padding: 10px 24px; border-radius: 50px;
+            opacity: 0; transition: all 0.3s; pointer-events: none; z-index: 100;
         }
-        .toast.show { opacity: 1; }
-
-        /* Scrollbar custom */
-        #results-container::-webkit-scrollbar { width: 6px; }
-        #results-container::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
     </style>
 </head>
 <body>
 
-    <div class="container">
+    <div class="app-container">
         <div class="header">
-            <h1>Localizador de CEP</h1>
-            <p class="subtitle">Encontre o CEP pelo nome da rua</p>
+            <h1>Localizador Postal</h1>
+            
+            <div class="tab-switcher">
+                <button class="tab-btn active" onclick="switchTab('cep')">Tenho o CEP</button>
+                <button class="tab-btn" onclick="switchTab('address')">Tenho o Endereço</button>
+            </div>
         </div>
 
-        <form id="addressForm" class="search-grid">
+        <div class="content-area">
             
-            <div>
-                <label>Estado</label>
-                <select id="uf" required>
-                    <option value="SP" selected>SP</option>
-                    <option value="AC">AC</option><option value="AL">AL</option><option value="AP">AP</option>
-                    <option value="AM">AM</option><option value="BA">BA</option><option value="CE">CE</option>
-                    <option value="DF">DF</option><option value="ES">ES</option><option value="GO">GO</option>
-                    <option value="MA">MA</option><option value="MT">MT</option><option value="MS">MS</option>
-                    <option value="MG">MG</option><option value="PA">PA</option><option value="PB">PB</option>
-                    <option value="PR">PR</option><option value="PE">PE</option><option value="PI">PI</option>
-                    <option value="RJ">RJ</option><option value="RN">RN</option><option value="RS">RS</option>
-                    <option value="RO">RO</option><option value="RR">RR</option><option value="SC">SC</option>
-                    <option value="SE">SE</option><option value="TO">TO</option>
-                </select>
+            <div id="view-cep" class="view-section active">
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem; text-align: center;">
+                    Digite o CEP para ver os detalhes (BrasilAPI)
+                </p>
+                <form id="form-cep">
+                    <div class="form-group">
+                        <input type="text" id="input-cep" placeholder="00000-000" maxlength="9" style="text-align: center; letter-spacing: 1px; font-size: 1.2rem;">
+                    </div>
+                    <button type="submit" class="btn-action">Buscar Dados</button>
+                </form>
+
+                <div id="msg-cep" class="status-msg"></div>
+
+                <div id="result-cep" class="result-box" style="display: none;">
+                    <div class="card-single">
+                        <span class="cep-badge" style="display: inline-flex; margin-bottom: 10px;" id="res-cep-badge"></span>
+                        
+                        <div class="data-label">LOGRADOURO</div>
+                        <div class="data-value" id="res-street"></div>
+
+                        <div class="data-label">BAIRRO</div>
+                        <div class="data-value" id="res-neighborhood"></div>
+
+                        <div class="data-label">CIDADE / UF</div>
+                        <div class="data-value" id="res-city-uf"></div>
+                    </div>
+                </div>
             </div>
 
-            <div>
-                <label>Cidade</label>
-                <input type="text" id="city" placeholder="Ex: Itanhaém" value="Itanhaém" required>
+            <div id="view-address" class="view-section">
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem; text-align: center;">
+                    Encontre o CEP pelo nome da rua (ViaCEP)
+                </p>
+                <form id="form-address">
+                    <div style="display: grid; grid-template-columns: 80px 1fr; gap: 10px;">
+                        <div class="form-group">
+                            <label>UF</label>
+                            <select id="input-uf">
+                                <option value="SP" selected>SP</option>
+                                <option value="AC">AC</option><option value="AL">AL</option><option value="AP">AP</option>
+                                <option value="AM">AM</option><option value="BA">BA</option><option value="CE">CE</option>
+                                <option value="DF">DF</option><option value="ES">ES</option><option value="GO">GO</option>
+                                <option value="MA">MA</option><option value="MT">MT</option><option value="MS">MS</option>
+                                <option value="MG">MG</option><option value="PA">PA</option><option value="PB">PB</option>
+                                <option value="PR">PR</option><option value="PE">PE</option><option value="PI">PI</option>
+                                <option value="RJ">RJ</option><option value="RN">RN</option><option value="RS">RS</option>
+                                <option value="RO">RO</option><option value="RR">RR</option><option value="SC">SC</option>
+                                <option value="SE">SE</option><option value="TO">TO</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Cidade</label>
+                            <input type="text" id="input-city" value="Itanhaém" placeholder="Cidade">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Nome da Rua (ou parte)</label>
+                        <input type="text" id="input-street" placeholder="Ex: Rui Barbosa">
+                    </div>
+                    <button type="submit" class="btn-action">Pesquisar Lista</button>
+                </form>
+
+                <div id="msg-address" class="status-msg"></div>
+
+                <div id="result-list" class="result-box" style="display: none;">
+                    </div>
             </div>
 
-            <div class="full-width">
-                <label>Nome da Rua (Parte do nome)</label>
-                <input type="text" id="street" placeholder="Ex: Avenida Rui Barbosa" minlength="3" required>
-            </div>
-
-            <button type="submit" class="btn-search" id="btnSearch">Pesquisar Endereços</button>
-        </form>
-
-        <div id="statusMessage" style="text-align: center; color: var(--text-muted); font-size: 0.9rem;"></div>
-
-        <div id="results-container">
-            </div>
+        </div>
     </div>
 
-    <div id="toast" class="toast">CEP Copiado!</div>
+    <div id="toast" class="toast">Copiado para a área de transferência!</div>
 
     <script>
-        const form = document.getElementById('addressForm');
-        const listContainer = document.getElementById('results-container');
-        const statusMsg = document.getElementById('statusMessage');
-        const btnSearch = document.getElementById('btnSearch');
+        // --- LÓGICA DE ABAS ---
+        function switchTab(tabName) {
+            // Atualiza botões
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
 
-        form.addEventListener('submit', async (e) => {
+            // Atualiza views
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            document.getElementById(`view-${tabName}`).classList.add('active');
+
+            // Foca no input relevante
+            if(tabName === 'cep') document.getElementById('input-cep').focus();
+            else document.getElementById('input-street').focus();
+        }
+
+        // --- UTILITÁRIOS ---
+        function showToast(text) {
+            const t = document.getElementById('toast');
+            t.textContent = text;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 2500);
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast(`CEP ${text} copiado!`);
+            });
+        }
+
+        // --- MÓDULO 1: BRASIL API (Busca por CEP) ---
+        const formCep = document.getElementById('form-cep');
+        const inputCep = document.getElementById('input-cep');
+        
+        // Máscara
+        inputCep.addEventListener('input', (e) => {
+            let v = e.target.value.replace(/\D/g, '');
+            if (v.length > 5) v = v.replace(/^(\d{5})(\d)/, '$1-$2');
+            e.target.value = v;
+        });
+
+        formCep.addEventListener('submit', async (e) => {
             e.preventDefault();
+            const cep = inputCep.value.replace(/\D/g, '');
+            const msgEl = document.getElementById('msg-cep');
+            const resBox = document.getElementById('result-cep');
 
-            const uf = document.getElementById('uf').value;
-            const city = document.getElementById('city').value.trim();
-            const street = document.getElementById('street').value.trim();
-
-            if (street.length < 3) {
-                statusMsg.textContent = "Digite pelo menos 3 letras da rua.";
-                statusMsg.style.color = "var(--error)";
-                return;
+            if (cep.length !== 8) {
+                msgEl.textContent = "CEP inválido."; msgEl.className = "status-msg error"; return;
             }
 
-            // UI Loading
-            btnSearch.disabled = true;
-            btnSearch.textContent = "Buscando...";
-            listContainer.style.display = 'none';
-            statusMsg.textContent = "Consultando base de dados...";
-            statusMsg.style.color = "var(--text-muted)";
-            listContainer.innerHTML = '';
+            msgEl.textContent = "Consultando BrasilAPI..."; msgEl.className = "status-msg";
+            resBox.style.display = 'none';
 
             try {
-                // ViaCEP requer: UF / Cidade / Logradouro
-                // encodeURIComponent é vital para cidades/ruas com espaço ou acento
-                const url = `https://viacep.com.br/ws/${uf}/${encodeURIComponent(city)}/${encodeURIComponent(street)}/json/`;
+                const req = await fetch(`https://brasilapi.com.br/api/cep/v2/${cep}`);
+                if (!req.ok) throw new Error();
+                const data = await req.json();
+
+                // Renderiza
+                document.getElementById('res-street').textContent = data.street || 'Logradouro Geral';
+                document.getElementById('res-neighborhood').textContent = data.neighborhood || '---';
+                document.getElementById('res-city-uf').textContent = `${data.city} - ${data.state}`;
                 
-                const response = await fetch(url);
-                const data = await response.json();
+                // Configura o botão de copiar do card
+                const badge = document.getElementById('res-cep-badge');
+                badge.textContent = data.cep;
+                badge.onclick = () => copyToClipboard(data.cep);
 
-                if (!Array.isArray(data) || data.length === 0) {
-                    throw new Error("Nenhum endereço encontrado.");
-                }
+                resBox.style.display = 'block';
+                msgEl.textContent = "";
 
-                renderResults(data);
-                statusMsg.textContent = `${data.length} endereço(s) encontrado(s).`;
-                statusMsg.style.color = "var(--success)";
-                listContainer.style.display = 'block';
-
-            } catch (error) {
-                console.error(error);
-                statusMsg.textContent = "Nenhum resultado encontrado. Verifique a grafia.";
-                statusMsg.style.color = "var(--error)";
-            } finally {
-                btnSearch.disabled = false;
-                btnSearch.textContent = "Pesquisar Endereços";
+            } catch (err) {
+                msgEl.textContent = "CEP não encontrado ou erro de conexão.";
+                msgEl.className = "status-msg error";
             }
         });
 
-        function renderResults(items) {
-            listContainer.innerHTML = ''; // Limpa anteriores
+        // --- MÓDULO 2: VIACEP (Busca por Endereço) ---
+        const formAddr = document.getElementById('form-address');
 
-            items.forEach(item => {
-                const card = document.createElement('div');
-                card.className = 'result-card';
-                
-                // Formata o HTML do card
-                card.innerHTML = `
-                    <div class="info">
-                        <h3>${item.logradouro} ${item.complemento ? '('+item.complemento+')' : ''}</h3>
-                        <p>${item.bairro} - ${item.localidade}/${item.uf}</p>
-                    </div>
-                    <div class="cep-tag" onclick="copyToClipboard('${item.cep}')" title="Clique para copiar">
-                        ${item.cep}
-                    </div>
-                `;
-                listContainer.appendChild(card);
-            });
-        }
+        formAddr.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const uf = document.getElementById('input-uf').value;
+            const city = document.getElementById('input-city').value.trim();
+            const street = document.getElementById('input-street').value.trim();
+            const msgEl = document.getElementById('msg-address');
+            const listEl = document.getElementById('result-list');
 
-        // Função para Copiar CEP
-        function copyToClipboard(text) {
-            navigator.clipboard.writeText(text).then(() => {
-                const toast = document.getElementById('toast');
-                toast.classList.add('show');
-                setTimeout(() => toast.classList.remove('show'), 2000);
-            });
-        }
+            if (street.length < 3) {
+                msgEl.textContent = "Digite pelo menos 3 letras da rua."; msgEl.className = "status-msg error"; return;
+            }
+
+            msgEl.textContent = "Buscando ruas no ViaCEP..."; msgEl.className = "status-msg";
+            listEl.innerHTML = '';
+            listEl.style.display = 'none';
+
+            try {
+                const url = `https://viacep.com.br/ws/${uf}/${encodeURIComponent(city)}/${encodeURIComponent(street)}/json/`;
+                const req = await fetch(url);
+                const data = await req.json();
+
+                if (!Array.isArray(data) || data.length === 0) throw new Error();
+
+                // Renderiza Lista
+                data.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'card-list-item';
+                    div.innerHTML = `
+                        <div>
+                            <div style="font-weight:600; color:var(--text-main)">${item.logradouro} ${item.complemento ? '('+item.complemento+')' : ''}</div>
+                            <div style="font-size:0.85rem; color:var(--text-muted)">${item.bairro}</div>
+                        </div>
+                        <div class="cep-badge" onclick="copyToClipboard('${item.cep}')">${item.cep}</div>
+                    `;
+                    listEl.appendChild(div);
+                });
+
+                listEl.style.display = 'block';
+                msgEl.textContent = `${data.length} resultados encontrados.`;
+                msgEl.className = "status-msg success";
+
+            } catch (err) {
+                msgEl.textContent = "Nenhum endereço encontrado.";
+                msgEl.className = "status-msg error";
+            }
+        });
     </script>
 </body>
 </html>
