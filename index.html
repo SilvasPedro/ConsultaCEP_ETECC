@@ -223,28 +223,17 @@
 
             <div id="view-address" class="view-section">
                 <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem; text-align: center;">
-                    Encontre o CEP pelo nome da rua (ViaCEP)
+                    Encontre o CEP pelo nome do Logradouro
                 </p>
                 <form id="form-address">
-                    <div style="display: grid; grid-template-columns: 80px 1fr; gap: 10px;">
-                        <div class="form-group">
-                            <label>UF</label>
-                            <select id="input-uf">
-                                <option value="SP" selected>SP</option>
-                                <option value="AC">AC</option><option value="AL">AL</option><option value="AP">AP</option>
-                                <option value="AM">AM</option><option value="BA">BA</option><option value="CE">CE</option>
-                                <option value="DF">DF</option><option value="ES">ES</option><option value="GO">GO</option>
-                                <option value="MA">MA</option><option value="MT">MT</option><option value="MS">MS</option>
-                                <option value="MG">MG</option><option value="PA">PA</option><option value="PB">PB</option>
-                                <option value="PR">PR</option><option value="PE">PE</option><option value="PI">PI</option>
-                                <option value="RJ">RJ</option><option value="RN">RN</option><option value="RS">RS</option>
-                                <option value="RO">RO</option><option value="RR">RR</option><option value="SC">SC</option>
-                                <option value="SE">SE</option><option value="TO">TO</option>
-                            </select>
-                        </div>
+                    <div style="display: grid;gap: 10px;">
                         <div class="form-group">
                             <label>Cidade</label>
-                            <input type="text" id="input-city" value="Itanhaém" placeholder="Cidade">
+                            <select id="input-city">
+                                <option value="Itanhaem">Itanhaém</option>
+                                <option value="Peruibe">Peruíbe</option>
+                                <option value="Mongagua">Mongaguá</option>
+                            </select>
                         </div>
                     </div>
                     <div class="form-group">
@@ -266,17 +255,56 @@
     <div id="toast" class="toast">Copiado para a área de transferência!</div>
 
     <script>
+        // --- VARIÁVEIS GLOBAIS ---
+        let dbCeps = []; // Armazena todos os CEPs carregados do CSV
+        let isDbLoaded = false;
+
+        // --- INICIALIZAÇÃO: Carrega o CSV assim que a página abre ---
+        document.addEventListener('DOMContentLoaded', () => {
+            loadCsvDatabase();
+        });
+
+        async function loadCsvDatabase() {
+            try {
+                // Busca o arquivo que você enviou: 'ceps.csv'
+                const req = await fetch('ceps.csv');
+                if (!req.ok) throw new Error("Erro ao carregar ceps.csv");
+                const text = await req.text();
+
+                const rows = text.split('\n');
+                // Começa do 1 para pular o cabeçalho (CEP,LOGRADOURO,BAIRRO,CIDADE)
+                for (let i = 1; i < rows.length; i++) {
+                    const row = rows[i].trim();
+                    if (!row) continue;
+
+                    // O seu arquivo usa VÍRGULA como separador
+                    const cols = row.split(','); 
+                    
+                    if (cols.length >= 4) {
+                        dbCeps.push({
+                            cep: cols[0].trim(),
+                            logradouro: cols[1].trim(),
+                            bairro: cols[2].trim(),
+                            cidade: cols[3].trim()
+                        });
+                    }
+                }
+                isDbLoaded = true;
+                console.log(`Base carregada: ${dbCeps.length} endereços.`);
+            } catch (err) {
+                console.error(err);
+                document.getElementById('msg-address').innerText = "Erro: Não foi possível carregar a base de CEPs.";
+                document.getElementById('msg-address').className = "status-msg error";
+            }
+        }
+
         // --- LÓGICA DE ABAS ---
         function switchTab(tabName) {
-            // Atualiza botões
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             event.target.classList.add('active');
-
-            // Atualiza views
             document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
             document.getElementById(`view-${tabName}`).classList.add('active');
-
-            // Foca no input relevante
+            
             if(tabName === 'cep') document.getElementById('input-cep').focus();
             else document.getElementById('input-street').focus();
         }
@@ -295,11 +323,10 @@
             });
         }
 
-        // --- MÓDULO 1: BRASIL API (Busca por CEP) ---
+        // --- MÓDULO 1: BRASIL API (Busca por CEP - Mantido igual) ---
         const formCep = document.getElementById('form-cep');
         const inputCep = document.getElementById('input-cep');
         
-        // Máscara
         inputCep.addEventListener('input', (e) => {
             let v = e.target.value.replace(/\D/g, '');
             if (v.length > 5) v = v.replace(/^(\d{5})(\d)/, '$1-$2');
@@ -316,80 +343,103 @@
                 msgEl.textContent = "CEP inválido."; msgEl.className = "status-msg error"; return;
             }
 
-            msgEl.textContent = "Consultando BrasilAPI..."; msgEl.className = "status-msg";
+            msgEl.textContent = "Consultando..."; msgEl.className = "status-msg";
             resBox.style.display = 'none';
 
             try {
-                const req = await fetch(`https://brasilapi.com.br/api/cep/v2/${cep}`);
-                if (!req.ok) throw new Error();
-                const data = await req.json();
+                // Tenta achar na base local primeiro para ser mais rápido
+                const localResult = dbCeps.find(item => item.cep.replace(/\D/g, '') === cep);
 
-                // Renderiza
-                document.getElementById('res-street').textContent = data.street || 'Logradouro Geral';
-                document.getElementById('res-neighborhood').textContent = data.neighborhood || '---';
-                document.getElementById('res-city-uf').textContent = `${data.city} - ${data.state}`;
-                
-                // Configura o botão de copiar do card
-                const badge = document.getElementById('res-cep-badge');
-                badge.textContent = data.cep;
-                badge.onclick = () => copyToClipboard(data.cep);
-
-                resBox.style.display = 'block';
-                msgEl.textContent = "";
-
+                if (localResult) {
+                    fillCepData(localResult.logradouro, localResult.bairro, localResult.cidade, localResult.cep);
+                    msgEl.textContent = "";
+                    resBox.style.display = 'block';
+                } else {
+                    // Fallback para API se não achar no CSV
+                    const req = await fetch(`https://brasilapi.com.br/api/cep/v2/${cep}`);
+                    if (!req.ok) throw new Error();
+                    const data = await req.json();
+                    fillCepData(data.street, data.neighborhood, `${data.city} - ${data.state}`, data.cep);
+                    msgEl.textContent = "";
+                    resBox.style.display = 'block';
+                }
             } catch (err) {
-                msgEl.textContent = "CEP não encontrado ou erro de conexão.";
+                msgEl.textContent = "CEP não encontrado.";
                 msgEl.className = "status-msg error";
             }
         });
 
-        // --- MÓDULO 2: VIACEP (Busca por Endereço) ---
-        const formAddr = document.getElementById('form-address');
+        function fillCepData(logradouro, bairro, cidade, cep) {
+            document.getElementById('res-street').textContent = logradouro || '---';
+            document.getElementById('res-neighborhood').textContent = bairro || '---';
+            document.getElementById('res-city-uf').textContent = cidade;
+            const badge = document.getElementById('res-cep-badge');
+            badge.textContent = cep;
+            badge.onclick = () => copyToClipboard(cep);
+        }
 
-        formAddr.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const uf = document.getElementById('input-uf').value;
-            const city = document.getElementById('input-city').value.trim();
-            const street = document.getElementById('input-street').value.trim();
-            const msgEl = document.getElementById('msg-address');
+        // --- MÓDULO 2: BUSCA EM TEMPO REAL NO CSV ---
+        const inputStreet = document.getElementById('input-street');
+        // Previne o submit do formulário para não recarregar a página
+        document.getElementById('form-address').addEventListener('submit', (e) => e.preventDefault());
+
+        // Evento principal: Dispara enquanto digita
+        inputStreet.addEventListener('input', function() {
+            const term = this.value.toLowerCase().trim();
             const listEl = document.getElementById('result-list');
+            const msgEl = document.getElementById('msg-address');
 
-            if (street.length < 3) {
-                msgEl.textContent = "Digite pelo menos 3 letras da rua."; msgEl.className = "status-msg error"; return;
+            // Limpa resultados anteriores
+            listEl.innerHTML = '';
+            
+            if (!isDbLoaded) {
+                msgEl.textContent = "Aguarde, carregando base de dados...";
+                return;
             }
 
-            msgEl.textContent = "Buscando ruas no ViaCEP..."; msgEl.className = "status-msg";
-            listEl.innerHTML = '';
-            listEl.style.display = 'none';
+            if (term.length < 3) {
+                listEl.style.display = 'none';
+                msgEl.textContent = ""; // Limpa msg se for curto
+                return;
+            }
 
-            try {
-                const url = `https://viacep.com.br/ws/${uf}/${encodeURIComponent(city)}/${encodeURIComponent(street)}/json/`;
-                const req = await fetch(url);
-                const data = await req.json();
+            // Filtragem
+            // Filtra por rua e opcionalmente por cidade se o input-city estiver preenchido
+            const cityFilter = document.getElementById('input-city').value.toLowerCase().trim();
+            
+            const results = dbCeps.filter(item => {
+                const matchStreet = item.logradouro.toLowerCase().includes(term);
+                const matchCity = cityFilter === '' || item.cidade.toLowerCase().includes(cityFilter);
+                return matchStreet && matchCity;
+            });
 
-                if (!Array.isArray(data) || data.length === 0) throw new Error();
+            // Limite de resultados para não travar a tela se tiver muitos
+            const maxResults = 50; 
+            const displayResults = results.slice(0, maxResults);
 
-                // Renderiza Lista
-                data.forEach(item => {
+            if (displayResults.length === 0) {
+                msgEl.textContent = "Nenhum endereço encontrado.";
+                msgEl.className = "status-msg";
+                listEl.style.display = 'none';
+            } else {
+                msgEl.textContent = results.length > maxResults 
+                    ? `Mostrando ${maxResults} de ${results.length} resultados...` 
+                    : `${results.length} resultados encontrados.`;
+                msgEl.className = "status-msg success";
+                listEl.style.display = 'block';
+
+                displayResults.forEach(item => {
                     const div = document.createElement('div');
                     div.className = 'card-list-item';
                     div.innerHTML = `
                         <div>
-                            <div style="font-weight:600; color:var(--text-main)">${item.logradouro} ${item.complemento ? '('+item.complemento+')' : ''}</div>
-                            <div style="font-size:0.85rem; color:var(--text-muted)">${item.bairro}</div>
+                            <div style="font-weight:600; color:var(--text-main)">${item.logradouro}</div>
+                            <div style="font-size:0.85rem; color:var(--text-muted)">${item.bairro} - ${item.cidade}</div>
                         </div>
                         <div class="cep-badge" onclick="copyToClipboard('${item.cep}')">${item.cep}</div>
                     `;
                     listEl.appendChild(div);
                 });
-
-                listEl.style.display = 'block';
-                msgEl.textContent = `${data.length} resultados encontrados.`;
-                msgEl.className = "status-msg success";
-
-            } catch (err) {
-                msgEl.textContent = "Nenhum endereço encontrado.";
-                msgEl.className = "status-msg error";
             }
         });
     </script>
